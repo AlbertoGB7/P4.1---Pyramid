@@ -136,6 +136,9 @@ const wss = new WebSocket.Server({ port: 8180 });
 
 let players = {}; // Almacena la información de los jugadores
 let playerIdCounter = 0; // Contador para generar IDs únicos
+let gameRunning = false;  // Estat del joc
+let gameInterval = null;  // Interval del temporitzador
+let adminWs = null;      // Connexió WebSocket de l'administrador
 
 console.log("Servidor WebSocket escoltant al port 8180");
 // Esdeveniment del servidor 'wss' per gestionar la connexió d'un client 'ws'
@@ -183,8 +186,17 @@ function processar(ws, missatge) {
     const data = JSON.parse(missatge);
 
     switch (data.type) {
+        case 'admin':
+            crearAdmin(ws, missatge);
+            break;
         case 'player':
             crearJugador(ws, missatge);
+            break;
+        case 'start':
+            start(ws, missatge);
+            break;
+        case 'stop':
+            stop(ws, missatge);
             break;
         case 'move':
             direccio(ws, missatge);
@@ -301,6 +313,34 @@ function configurar(ws, m) {
 //	- cridar la funció reiniciar, canviar l'estat del joc
 //		i enviar-li missatge informatiu
 function start(ws, m) {
+    // Verificar si l'usuari és l'administrador
+    if (ws !== adminWs) {
+        ws.close(1000, "No tens permís d'administrador");
+        return;
+    }
+
+    // Si el joc ja està en marxa, enviar missatge informatiu
+    if (gameRunning) {
+        ws.send(JSON.stringify({
+            type: 'missatge',
+            text: 'El joc ja està en marxa'
+        }));
+        return;
+    }
+
+    // Iniciar el joc
+    gameRunning = true;
+    reiniciar();  // Reiniciar l'estat del joc
+    
+    // Iniciar el temporitzador que crida a mou()
+    gameInterval = setInterval(mou, TEMPS);
+
+    // Enviar missatge a tots els clients
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'engegar' }));
+        }
+    });
 }
 
 // Esdeveniment: aturar
@@ -311,6 +351,31 @@ function start(ws, m) {
 //	- canviar l'estat del joc
 //		i enviar-li missatge informatiu
 function stop(ws, m) {
+    // Verificar si l'usuari és l'administrador
+    if (ws !== adminWs) {
+        ws.close(1000, "No tens permís d'administrador");
+        return;
+    }
+
+    // Si el joc ja està aturat, enviar missatge informatiu
+    if (!gameRunning) {
+        ws.send(JSON.stringify({
+            type: 'missatge',
+            text: 'El joc ja està aturat'
+        }));
+        return;
+    }
+
+    // Aturar el joc
+    gameRunning = false;
+    clearInterval(gameInterval);  // Aturar el temporitzador
+
+    // Enviar missatge a tots els clients
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'aturar' }));
+        }
+    });
 }
 
 // Esdeveniment: agafar / deixar
