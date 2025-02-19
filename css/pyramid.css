@@ -1,0 +1,40 @@
+body * {
+	font-size:16px;
+}
+
+h2 {
+	font-size:1.4rem;
+	text-align:center;
+}
+
+div {
+	margin-bottom:1rem;
+}
+
+label {
+	width:14rem;
+	display:inline-block;
+	text-align:right;
+}
+
+input {
+	width:4rem;
+	margin:.2rem;
+}
+
+.left {
+	text-align:left;
+}
+
+.center {
+	text-align:center;
+}
+
+.right {
+	text-align:right;
+}
+
+.bold {
+	font-weight:bold;
+}
+

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <title>Pyramid (player)</title>
+    <link rel="stylesheet" type="text/css" href="css/pyramid.css">
+	<link rel="icon" href="favicon.ico" type="image/x-icon">
+	<script src="js/pyramid.js"></script>
+	<script defer src="js/player.js"></script>
+</head>
+<body>
+	<div>
+		<label for="pisos">Pisos de la piràmide</label> <input type="number" id="pisos" step="1" value="8" min="4" max="8" disabled /><br>
+	</div>
+	<div>
+		<svg width="640" height="480" viewbox="0 0 640 480" style="border:1px solid black">
+			<g id="pyramid"></g>
+			<g id="players"></g>
+			<g id="stones"></g>
+		</svg>
+	</div>
+</body>
+</html>
