@@ -125,12 +125,28 @@ function init() {
             case 'connectat':
                 playerId = message.id;
                 console.log("✅ Connectat com a jugador", playerId);
+                
+                // If config was sent with connection, apply it
+                if (message.config) {
+                    console.log("⚙️ Configuració inicial rebuda:", message.config);
+                    configurar(message.config);
+                    document.getElementById('pisos').value = message.config.pisos;
+                }
                 break;
+                
             case 'config':
-                console.log("⚙️ Configuració rebuda:", message.data);
+                console.log("⚙️ Nova configuració rebuda:", message.data);
+                // Update SVG viewport and dimensions
+                const svg = document.querySelector("svg");
+                svg.setAttribute("width", message.data.width);
+                svg.setAttribute("height", message.data.height);
+                svg.setAttribute("viewBox", `0 0 ${message.data.width} ${message.data.height}`);
+                
+                // Call configurar to update game settings
                 configurar(message.data);
                 document.getElementById('pisos').value = message.data.pisos;
                 break;
+                
             case 'dibuixar':
                 console.log("🎨 Actualitzant estat del joc:", {
                     jugadors: message.jugadors?.length || 0,
@@ -139,11 +155,11 @@ function init() {
                 });
                 dibuixar(message.jugadors || [], message.pedres || [], message.punts || [0, 0]);
                 break;
+                
             default:
                 console.log("❓ Missatge no processat:", message);
         }
     };
-
     document.addEventListener('keydown', direccio);
     console.log("✅ Event listener de teclat afegit");
 }

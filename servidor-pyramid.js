@@ -183,30 +183,33 @@ wss.on('connection', function connection(ws) {
 //	- aturar el joc
 //	- agafar (o deixar) una pedra
 //	- modificar la direcció
-function processar(ws, missatge) {
-    const data = JSON.parse(missatge);
-
-    switch (data.type) {
-        case 'admin':
-            crearAdmin(ws, missatge);
-            break;
-        case 'player':
-            crearJugador(ws, missatge);
-            break;
-        case 'start':
-            start(ws, missatge);
-            break;
-        case 'stop':
-            stop(ws, missatge);
-            break;
-        case 'direccio':  // Changed from 'move' to 'direccio'
-            direccio(ws, missatge);
-            break;
-        default:
-            console.log("Missatge no reconegut:", data);
+function start(ws, m) {
+    if (ws !== adminWs) {
+        ws.close(1000, "No tens permís d'administrador");
+        return;
     }
-}
 
+    if (gameRunning) {
+        ws.send(JSON.stringify({
+            type: 'missatge',
+            text: 'El joc ja està en marxa'
+        }));
+        return;
+    }
+
+    gameRunning = true;
+    reiniciar();
+    
+    // Start the game timer
+    gameInterval = setInterval(mou, TEMPS);
+
+    // Notify all clients
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ type: 'engegar' }));
+        }
+    });
+}
 // Esdeveniment: un client  ha tancat la connexió
 // Tenir en compte si és un jugador
 //	per comptar els que té cada equip
@@ -473,12 +476,7 @@ function agafar(ws, m) {
 //	Actualitzar la direcció del jugador
 
 function broadcastPlayers() {
-    const playersArray = Object.values(players);
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'update', players: playersArray }));
-        }
-    });
+    enviarEstatJoc();
 }
 
 function direccio(ws, m) {
@@ -527,29 +525,29 @@ function direccio(ws, m) {
 function mou() {
     if (!gameRunning) return;
 
-    // Actualitzar posicions dels jugadors
+    // Update players positions
     Object.values(players).forEach(player => {
-        // Actualitzar posició de la pedra si el jugador en porta una
+        // Update stone position if player has one
         if (player.stone) {
             player.stone.x = player.x;
             player.stone.y = player.y;
         }
     });
 
-    // Afegir noves pedres si cal
+    // Add new stones if needed
     if (pedres.length < MAXPED) {
         const novaPedra = {
             x: Math.floor(Math.random() * (config.width - MIDAP)),
             y: Math.floor(Math.random() * (config.height - MIDAP))
         };
         
-        // Evitar col·locar pedres a les zones de piràmide
-        if (!isInPyramidZone(novaPedra.x, novaPedra.y)) {
+        // Avoid pyramid zones
+        if (!esZonaPiramide(novaPedra.x, novaPedra.y)) {
             pedres.push(novaPedra);
         }
     }
 
-    // Enviar l'estat del joc a tots els clients
+    // Send game state to all clients
     enviarEstatJoc();
 }
 
