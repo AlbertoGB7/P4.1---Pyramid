@@ -139,6 +139,8 @@ let playerIdCounter = 0; // Contador para generar IDs únicos
 let gameRunning = false;  // Estat del joc
 let gameInterval = null;  // Interval del temporitzador
 let adminWs = null;      // Connexió WebSocket de l'administrador
+let pedres = [];         // Array de pedres en la zona de joc
+let punts = [0, 0];      // Puntuació dels dos equips
 
 console.log("Servidor WebSocket escoltant al port 8180");
 // Esdeveniment del servidor 'wss' per gestionar la connexió d'un client 'ws'
@@ -151,20 +153,18 @@ wss.on('connection', function connection(ws) {
     // Gestor d'esdeveniments per quan el client envia un missatge
     ws.on('message', function incoming(message) {
         console.log("Missatge rebut: %s", message);
-        // Aquí podríem processar el missatge rebut
+        processar(ws, message); // Add this line to process messages
     });
 
     // Gestor d'esdeveniments per quan el client es desconnecta
     ws.on('close', function close() {
-        console.log("Client desconnectat");
+        tancar(ws); // Add this line to handle disconnections
     });
 
     // Gestor d'esdeveniments per errors
     ws.on('error', function error(err) {
         console.error("Error en la connexió: %s", err);
     });
-
-	
 });
 
 
@@ -244,22 +244,25 @@ function crearAdmin(ws, m) {
 //	- enviar-li el seu identificador i la configuració actual:
 //		mida de la zona de joc i pisos de la piràmide
 function crearJugador(ws, m) {
-	const playerId = playerIdCounter++; // Asignar un ID único
+    const playerId = playerIdCounter++; 
     console.log(`Nou jugador connectat amb ID: ${playerId}`);
 
-    // Crear un nuevo jugador con posición inicial
     players[playerId] = {
         id: playerId,
-        x: Math.floor(Math.random() * (config.width - MIDAJ)), // Posición X aleatoria
-        y: Math.floor(Math.random() * (config.height - MIDAJ)), // Posición Y aleatoria
-        team: playerId % 2, // Asignar equipo (0 o 1)
+        ws: ws, // Add this line to store the WebSocket connection
+        x: Math.floor(Math.random() * (config.width - MIDAJ)),
+        y: Math.floor(Math.random() * (config.height - MIDAJ)),
+        team: playerId % 2,
     };
 
     // Enviar el ID y la configuración al cliente
-    ws.send(JSON.stringify({ type: 'connectat', id: playerId, config: config }));
+    ws.send(JSON.stringify({ 
+        type: 'connectat', 
+        id: playerId,
+        config: config 
+    }));
 
-    // Enviar la lista de jugadores a todos los clientes
-    broadcastPlayers();
+    broadcastGameState(); // Change this from broadcastPlayers
 }
 
 
@@ -444,7 +447,109 @@ function direccio(ws, m) {
 //	- enviar un missatge a tothom
 //		amb les posicions dels jugadors, les pedres (només si el joc està en marxa)
 //		i la puntuació de cada equip (un punt per cada pedra posada en la piràmide)
+// Step 2: Implement periodic game update function
 function mou() {
+    if (!gameRunning) return;
+
+    // Update player positions
+    Object.values(players).forEach(player => {
+        // Update stone position if player has one
+        if (player.stone) {
+            player.stone.x = player.x;
+            player.stone.y = player.y;
+        }
+    });
+
+    // Add new stones if needed
+    if (pedres.length < MAXPED) {
+        const newStone = {
+            x: Math.floor(Math.random() * (config.width - MIDAP)),
+            y: Math.floor(Math.random() * (config.height - MIDAP))
+        };
+        
+        // Avoid placing stones in pyramid zones
+        if (!isInPyramidZone(newStone.x, newStone.y)) {
+            pedres.push(newStone);
+        }
+    }
+
+    // Broadcast game state to all clients
+    broadcastGameState();
+}
+
+// Step 3: Implement stone pickup/drop function
+function agafar(ws, m) {
+    if (!gameRunning) return;
+
+    const data = JSON.parse(m);
+    const player = players[data.id];
+    if (!player) return;
+
+    if (!player.stone) {
+        // Try to pick up a stone
+        const stoneIndex = pedres.findIndex(stone => 
+            Math.abs(stone.x - player.x) < MIDAJ &&
+            Math.abs(stone.y - player.y) < MIDAJ
+        );
+
+        if (stoneIndex !== -1) {
+            player.stone = pedres[stoneIndex];
+            pedres.splice(stoneIndex, 1);
+        }
+    } else {
+        // Try to drop the stone
+        if (isInPyramidZone(player.x, player.y)) {
+            if (isInTeamZone(player.x, player.y, player.team)) {
+                // Add point to team
+                punts[player.team]++;
+                delete player.stone;
+                
+                // Check if game should end
+                if (punts[0] + punts[1] >= config.pedres) {
+                    stop(adminWs, null);
+                }
+            }
+        } else {
+            // Drop stone in current position
+            pedres.push({
+                x: player.x,
+                y: player.y
+            });
+            delete player.stone;
+        }
+    }
+
+    broadcastGameState();
+}
+
+// Helper function to check if position is in pyramid zone
+function isInPyramidZone(x, y) {
+    return (x < PHMAX || x > config.width - PHMAX) && 
+           (y < PVMAX || y > config.height - PVMAX);
+}
+
+// Helper function to check if position is in team's zone
+function isInTeamZone(x, y, team) {
+    if (team === 0) {
+        return x < PHMAX && y < PVMAX;
+    } else {
+        return x > config.width - PHMAX && y > config.height - PVMAX;
+    }
+}
+
+function broadcastGameState() {
+    const gameState = {
+        type: 'dibuixar',
+        jugadors: Object.values(players),
+        pedres: pedres,
+        punts: punts
+    };
+
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(gameState));
+        }
+    });
 }
 
 /***********************************************

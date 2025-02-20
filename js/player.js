@@ -98,7 +98,7 @@ function init() {
     ws.onmessage = function(event) {
         const message = JSON.parse(event.data);
         console.log("Missatge rebut:", message);
-
+    
         switch(message.type) {
             case 'connectat':
                 playerId = message.id;
@@ -110,11 +110,6 @@ function init() {
                 break;
             case 'dibuixar':
                 dibuixar(message.jugadors || [], message.pedres || [], message.punts || [0, 0]);
-                break;
-            case 'update':
-                if (message.players) {
-                    dibuixar(message.players, message.pedres || [], message.punts || [0, 0]);
-                }
                 break;
             default:
                 console.log("Missatge rebut:", message);
