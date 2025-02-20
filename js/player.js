@@ -56,7 +56,7 @@ function direccio(ev) {
     // Si s'ha detectat una direcció vàlida, enviar-la al servidor
     if (direction) {
         ws.send(JSON.stringify({ 
-            type: 'move',
+            type: 'direccio',  
             id: playerId,
             direction: direction 
         }));

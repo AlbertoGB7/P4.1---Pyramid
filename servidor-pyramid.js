@@ -198,7 +198,7 @@ function processar(ws, missatge) {
         case 'stop':
             stop(ws, missatge);
             break;
-        case 'move':
+        case 'direccio':  // Changed from 'move' to 'direccio'
             direccio(ws, missatge);
             break;
         default:
