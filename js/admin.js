@@ -12,9 +12,14 @@ let ws;
 // Enviar missatge 'config' amb les dades per configurar el servidor
 function setConfig() {
     // Obtenir els valors dels camps d'entrada
-    const width = document.getElementById('width').value;
-    const height = document.getElementById('height').value;
-    const pisos = document.getElementById('pisos').value;
+    const width = parseInt(document.getElementById('width').value);
+    const height = parseInt(document.getElementById('height').value);
+    const pisos = parseInt(document.getElementById('pisos').value);
+
+    if (isNaN(width) || isNaN(height) || isNaN(pisos)) {
+        alert("Si us plau, introdueix valors numèrics vàlids");
+        return;
+    }
 
     // Verificar que els valors estiguin dins dels rangs permesos
     if (width < 640 || width > 1280 || height < 480 || height > 960 || pisos < 4 || pisos > 8) {
@@ -81,48 +86,51 @@ function startStop() {
 //		- missatge: mostrar el missatge per consola
 // Afegir gestors d'esdeveniments pels botons 'Configurar' i 'Engegar/Aturar'
 function init() {
-        // Establir la connexió amb el servidor en el port 8180
-        ws = new WebSocket('ws://localhost:8180');
+    ws = new WebSocket('ws://localhost:8180');
 
-        // Gestionar esdeveniments de la connexió
-        ws.onopen = function() {
-            console.log("Connexió establerta amb el servidor");
-            // Enviar missatge al servidor indicant que s'ha d'afegir l'administrador
-            ws.send(JSON.stringify({ type: 'admin' }));
-        };
+    ws.onopen = function() {
+        console.log("Connexió establerta amb el servidor");
+        ws.send(JSON.stringify({ type: 'admin' }));
+    };
+
+    ws.onmessage = function(event) {
+        let message;
+        try {
+            message = JSON.parse(event.data);
+            console.log("📩 Missatge rebut:", message);
+        } catch (error) {
+            console.error("❌ Error parsejant missatge:", error);
+            return;
+        }
     
-        ws.onclose = function() {
-            alert("Connexió tancada. Tornant a la pàgina principal.");
-            window.location.href = "index.html";
-        };
-    
-        ws.onerror = function(error) {
-            alert("Error en la connexió: " + error.message);
-            window.location.href = "index.html";
-        };
-    
-        ws.onmessage = function(event) {
-            const message = JSON.parse(event.data);
-            console.log("Missatge rebut: ", message);
-        
-            switch (message.type) {
-                case 'config':
-                    // Actualitzar els valors dels inputs
-                    document.getElementById('width').value = message.data.width;
-                    document.getElementById('height').value = message.data.height;
-                    document.getElementById('pisos').value = message.data.pisos;
-                    break;
-                case 'engegar':
-                    document.getElementById('engegar').textContent = 'Aturar';
-                    break;
-                case 'aturar':
-                    document.getElementById('engegar').textContent = 'Engegar';
-                    break;
-                default:
-                    console.log("Missatge rebut:", message);
-            }
-            document.getElementById('engegar').addEventListener('click', startStop);
-        };
+        switch (message.type) {
+            case 'config':
+                document.getElementById('width').value = message.data.width;
+                document.getElementById('height').value = message.data.height;
+                document.getElementById('pisos').value = message.data.pisos;
+                break;
+            case 'engegar':
+                document.getElementById('engegar').textContent = 'Aturar';
+                break;
+            case 'aturar':
+                document.getElementById('engegar').textContent = 'Engegar';
+                break;
+            case 'dibuixar':
+                console.log("🎨 Actualitzant estat del joc:", {
+                    jugadors: message.jugadors?.length || 0,
+                    pedres: message.pedres?.length || 0,
+                    punts: message.punts || [0, 0]
+                });
+                dibuixar(message.jugadors || [], message.pedres || [], message.punts || [0, 0]);
+                break;
+            default:
+                console.log("Missatge rebut:", message);
+        }
+    };
+
+    // Move these outside onmessage
+    document.getElementById('configurar').addEventListener('click', setConfig);
+    document.getElementById('engegar').addEventListener('click', startStop);
 }
 
 /***********************************************

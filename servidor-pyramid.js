@@ -183,32 +183,39 @@ wss.on('connection', function connection(ws) {
 //	- aturar el joc
 //	- agafar (o deixar) una pedra
 //	- modificar la direcció
-function start(ws, m) {
-    if (ws !== adminWs) {
-        ws.close(1000, "No tens permís d'administrador");
-        return;
-    }
+function processar(ws, m) {
+    try {
+        const data = JSON.parse(m);
+        console.log("📩 Missatge rebut:", data);
 
-    if (gameRunning) {
-        ws.send(JSON.stringify({
-            type: 'missatge',
-            text: 'El joc ja està en marxa'
-        }));
-        return;
-    }
-
-    gameRunning = true;
-    reiniciar();
-    
-    // Start the game timer
-    gameInterval = setInterval(mou, TEMPS);
-
-    // Notify all clients
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'engegar' }));
+        switch (data.type) {
+            case 'admin':
+                crearAdmin(ws, m);
+                break;
+            case 'player':
+                crearJugador(ws, m);
+                break;
+            case 'config':
+                configurar(ws, m);
+                break;
+            case 'start':
+                start(ws, m);
+                break;
+            case 'stop':
+                stop(ws, m);
+                break;
+            case 'direccio':
+                direccio(ws, m);
+                break;
+            case 'agafar':
+                agafar(ws, m);
+                break;
+            default:
+                console.log("❌ Tipus de missatge desconegut:", data.type);
         }
-    });
+    } catch (error) {
+        console.error("❌ Error processant missatge:", error);
+    }
 }
 // Esdeveniment: un client  ha tancat la connexió
 // Tenir en compte si és un jugador
@@ -480,24 +487,30 @@ function broadcastPlayers() {
 }
 
 function direccio(ws, m) {
-	const data = JSON.parse(m);
-    const playerId = data.id; // ID del jugador que envió el mensaje
+    if (!gameRunning) return;
+
+    const data = JSON.parse(m);
+    const playerId = data.id;
     const player = players[playerId];
 
     if (player) {
+        let newX = player.x;
+        let newY = player.y;
+
         switch (data.direction) {
-            case 'up': player.y -= INCHV; break;
-            case 'down': player.y += INCHV; break;
-            case 'left': player.x -= INCHV; break;
-            case 'right': player.x += INCHV; break;
+            case 'up': newY -= INCHV; break;
+            case 'down': newY += INCHV; break;
+            case 'left': newX -= INCHV; break;
+            case 'right': newX += INCHV; break;
         }
 
-        // Asegurarse de que el jugador no salga del área de juego
-        player.x = Math.max(0, Math.min(config.width - MIDAJ, player.x));
-        player.y = Math.max(0, Math.min(config.height - MIDAJ, player.y));
-
-        // Enviar la posición actualizada a todos los clientes
-        broadcastPlayers();
+        // Check boundaries before updating
+        if (newX >= 0 && newX <= config.width - MIDAJ &&
+            newY >= 0 && newY <= config.height - MIDAJ) {
+            player.x = newX;
+            player.y = newY;
+            enviarEstatJoc();
+        }
     }
 }
 
@@ -542,7 +555,7 @@ function mou() {
         };
         
         // Avoid pyramid zones
-        if (!esZonaPiramide(novaPedra.x, novaPedra.y)) {
+        if (!isInPyramidZone(novaPedra.x, novaPedra.y)) {
             pedres.push(novaPedra);
         }
     }
@@ -596,6 +609,41 @@ function agafar(ws, m) {
     enviarEstatJoc();
 }
 
+function processar(ws, missatge) {
+    try {
+        const data = JSON.parse(missatge);
+        console.log("📩 Missatge rebut:", data);
+
+        switch (data.type) {
+            case 'admin':
+                crearAdmin(ws, missatge);
+                break;
+            case 'player':
+                crearJugador(ws, missatge);
+                break;
+            case 'config':
+                configurar(ws, missatge);
+                break;
+            case 'start':
+                start(ws, missatge);
+                break;
+            case 'stop':
+                stop(ws, missatge);
+                break;
+            case 'direccio':
+                direccio(ws, missatge);
+                break;
+            case 'agafar':
+                agafar(ws, missatge);
+                break;
+            default:
+                console.log("❌ Tipus de missatge desconegut:", data.type);
+        }
+    } catch (error) {
+        console.error("❌ Error processant missatge:", error);
+    }
+}
+
 // Helper function to check if position is in pyramid zone
 function isInPyramidZone(x, y) {
     return (x < PHMAX || x > config.width - PHMAX) && 
@@ -620,12 +668,15 @@ function enviarEstatJoc() {
     };
 
     wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(estatJoc));
+        try {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(estatJoc));
+            }
+        } catch (error) {
+            console.error("Error enviant estat del joc:", error);
         }
     });
 }
-
 /***********************************************
 * FINAL DE L'APARTAT ON POTS FER MODIFICACIONS *
 ***********************************************/

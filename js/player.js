@@ -1,5 +1,5 @@
 "use strict";
-let ws;
+let ws = null;
 let playerId = null;
 
 /*************************************************
@@ -73,6 +73,12 @@ function direccio(ev) {
 
     // Log the direction being sent
     if (direction) {
+        // Verify direction is valid
+        if (!['up', 'down', 'left', 'right'].includes(direction)) {
+            console.error("❌ Direcció invàlida:", direction);
+            return;
+        }
+        
         console.log("➡️ Enviant direcció:", direction);
         ws.send(JSON.stringify({ 
             type: 'direccio',  
@@ -135,6 +141,10 @@ function init() {
                 break;
                 
             case 'config':
+                if (!message.data || typeof message.data !== 'object') {
+                    console.error("❌ Dades de configuració invàlides");
+                    return;
+                }
                 console.log("⚙️ Nova configuració rebuda:", message.data);
                 // Update SVG viewport and dimensions
                 const svg = document.querySelector("svg");
@@ -155,7 +165,16 @@ function init() {
                 });
                 dibuixar(message.jugadors || [], message.pedres || [], message.punts || [0, 0]);
                 break;
-                
+            
+            case 'engegar':
+                console.log("🎮 Joc iniciat");
+                break;
+            case 'aturar':
+                console.log("⏹️ Joc aturat");
+                break;
+            case 'missatge':
+                console.log("💬 Missatge del servidor:", message.text);
+                break;
             default:
                 console.log("❓ Missatge no processat:", message);
         }
