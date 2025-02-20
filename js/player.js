@@ -18,12 +18,30 @@ let playerId = null;
 // Tecles Espai i Intro per agafar/deixar una pedra
 function direccio(ev) {
     // Verificar que tenim connexió i ID de jugador
-    if (!ws || ws.readyState !== WebSocket.OPEN || playerId === null) {
-        console.log("No hi ha connexió establerta o ID de jugador");
+    if (!ws) {
+        console.log("❌ No hi ha objecte WebSocket creat");
+        return;
+    }
+    
+    if (ws.readyState !== WebSocket.OPEN) {
+        console.log("❌ La connexió WebSocket no està oberta. Estat actual:", ws.readyState);
+        return;
+    }
+    
+    if (playerId === null) {
+        console.log("❌ No s'ha rebut encara l'ID del jugador");
+        console.log("📝 Estat actual:", {
+            ws: ws ? "Creat" : "No creat",
+            wsState: ws ? ws.readyState : "N/A",
+            playerId: playerId
+        });
         return;
     }
 
     let direction = null;
+
+    // Log the pressed key
+    console.log("🎮 Tecla premuda:", ev.key);
 
     // Determinar la direcció segons la tecla premuda
     switch (ev.key) {
@@ -53,8 +71,9 @@ function direccio(ev) {
             break;
     }
 
-    // Si s'ha detectat una direcció vàlida, enviar-la al servidor
+    // Log the direction being sent
     if (direction) {
+        console.log("➡️ Enviant direcció:", direction);
         ws.send(JSON.stringify({ 
             type: 'direccio',  
             id: playerId,
@@ -77,47 +96,56 @@ function direccio(ev) {
 //		- missatge: mostrar el missatge per consola
 // Afegir el gestor d'esdeveniments per les tecles
 function init() {
-    // Establir la connexió amb el servidor
+    console.log("🚀 Inicialitzant connexió WebSocket...");
     ws = new WebSocket('ws://localhost:8180');
 
     ws.onopen = function() {
-        console.log("Connexió establerta amb el servidor");
+        console.log("✅ Connexió establerta amb el servidor");
+        console.log("📤 Enviant petició de nou jugador");
         ws.send(JSON.stringify({ type: 'player' }));
     };
 
     ws.onclose = function() {
+        console.log("❌ Connexió tancada");
         alert("Connexió tancada. Tornant a la pàgina principal.");
         window.location.href = "index.html";
     };
 
     ws.onerror = function(error) {
+        console.log("❌ Error en la connexió:", error);
         alert("Error en la connexió: " + error.message);
         window.location.href = "index.html";
     };
 
     ws.onmessage = function(event) {
         const message = JSON.parse(event.data);
-        console.log("Missatge rebut:", message);
+        console.log("📩 Missatge rebut:", message);
     
         switch(message.type) {
             case 'connectat':
                 playerId = message.id;
-                console.log("Connectat com a jugador", playerId);
+                console.log("✅ Connectat com a jugador", playerId);
                 break;
             case 'config':
+                console.log("⚙️ Configuració rebuda:", message.data);
                 configurar(message.data);
                 document.getElementById('pisos').value = message.data.pisos;
                 break;
             case 'dibuixar':
+                console.log("🎨 Actualitzant estat del joc:", {
+                    jugadors: message.jugadors?.length || 0,
+                    pedres: message.pedres?.length || 0,
+                    punts: message.punts || [0, 0]
+                });
                 dibuixar(message.jugadors || [], message.pedres || [], message.punts || [0, 0]);
                 break;
             default:
-                console.log("Missatge rebut:", message);
+                console.log("❓ Missatge no processat:", message);
         }
     };
 
-    // Afegir el gestor d'esdeveniments per les tecles
     document.addEventListener('keydown', direccio);
+    console.log("✅ Event listener de teclat afegit");
 }
 
 /***********************************************
