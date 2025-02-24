@@ -1,6 +1,8 @@
 "use strict";
 let ws = null;
 let playerId = null;
+let currentDirection = null;
+let moveInterval = null;
 
 /*************************************************
 * EN AQUEST APARTAT POTS AFEGIR O MODIFICAR CODI *
@@ -17,74 +19,55 @@ let playerId = null;
 //	esquerra, avall, dreta i amunt (respectivament)
 // Tecles Espai i Intro per agafar/deixar una pedra
 function direccio(ev) {
-    // Verificar que tenim connexió i ID de jugador
-    if (!ws) {
-        console.log("❌ No hi ha objecte WebSocket creat");
-        return;
-    }
-    
-    if (ws.readyState !== WebSocket.OPEN) {
-        console.log("❌ La connexió WebSocket no està oberta. Estat actual:", ws.readyState);
-        return;
-    }
-    
-    if (playerId === null) {
-        console.log("❌ No s'ha rebut encara l'ID del jugador");
-        console.log("📝 Estat actual:", {
-            ws: ws ? "Creat" : "No creat",
-            wsState: ws ? ws.readyState : "N/A",
-            playerId: playerId
-        });
+    if (!ws || ws.readyState !== WebSocket.OPEN || playerId === null) {
         return;
     }
 
-    let direction = null;
-
-    // Log the pressed key
-    console.log("🎮 Tecla premuda:", ev.key);
-
-    // Determinar la direcció segons la tecla premuda
+    // Determinar la nueva dirección según la tecla
+    let newDirection = null;
     switch (ev.key) {
         case 'ArrowUp':
         case 'w':
-            direction = 'up';
+            newDirection = 'up';
             break;
         case 'ArrowDown':
         case 's':
-            direction = 'down';
+            newDirection = 'down';
             break;
         case 'ArrowLeft':
         case 'a':
-            direction = 'left';
+            newDirection = 'left';
             break;
         case 'ArrowRight':
         case 'd':
-            direction = 'right';
+            newDirection = 'right';
             break;
         case ' ':
         case 'Enter':
-            // Enviar ordre d'agafar/deixar pedra
             ws.send(JSON.stringify({ 
                 type: 'agafar', 
                 id: playerId 
             }));
-            break;
+            return;
     }
 
-    // Log the direction being sent
-    if (direction) {
-        // Verify direction is valid
-        if (!['up', 'down', 'left', 'right'].includes(direction)) {
-            console.error("❌ Direcció invàlida:", direction);
-            return;
+    // Si es una nueva dirección válida
+    if (newDirection) {
+        // Detener el intervalo actual si existe
+        if (moveInterval) {
+            clearInterval(moveInterval);
         }
+
+        currentDirection = newDirection;
         
-        console.log("➡️ Enviant direcció:", direction);
-        ws.send(JSON.stringify({ 
-            type: 'direccio',  
-            id: playerId,
-            direction: direction 
-        }));
+        // Crear nuevo intervalo para movimiento continuo
+        moveInterval = setInterval(() => {
+            ws.send(JSON.stringify({ 
+                type: 'direccio',  
+                id: playerId,
+                direction: currentDirection 
+            }));
+        }, 100); // Ajusta este valor para controlar la velocidad
     }
 }
 
@@ -174,6 +157,14 @@ function init() {
                 break;
             case 'missatge':
                 console.log("💬 Missatge del servidor:", message.text);
+                break;
+            case 'colision':
+                // Detener el movimiento cuando hay colisión
+                if (moveInterval) {
+                    clearInterval(moveInterval);
+                    moveInterval = null;
+                    currentDirection = null;
+                }
                 break;
             default:
                 console.log("❓ Missatge no processat:", message);
