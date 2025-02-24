@@ -7,15 +7,21 @@
 	<link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
 <body>
-	<div>
-		<a href="admin.html">
-		<button>Administrar</button>
-		</a>
+    <div id="auth-container">
+        <div id="g_id_signin"></div> <!-- Google renderiza aquí el botón -->
+    </div>
 
-		<a href="player.html">
-		<button>Jugar</button>
-		</a>
+    <div id="options" style="display: none;">
+        <a href="admin.html">
+            <button>Administrar</button>
+        </a>
+        <a href="player.html">
+            <button>Jugar</button>
+        </a>
+    </div>
 
-	</div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="js/sauth.js"></script>
 </body>
+
 </html>
