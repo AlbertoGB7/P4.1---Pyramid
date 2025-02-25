@@ -86,36 +86,45 @@ function startStop() {
 //		- missatge: mostrar el missatge per consola
 // Afegir gestors d'esdeveniments pels botons 'Configurar' i 'Engegar/Aturar'
 function init() {
+    // Estableix connexió WebSocket amb el servidor al port 8180
     ws = new WebSocket('ws://localhost:8180');
 
+    // Quan s'estableix la connexió, envia missatge identificant-se com a administrador
     ws.onopen = function() {
         console.log("Connexió establerta amb el servidor");
         ws.send(JSON.stringify({ type: 'admin' }));
     };
 
+    // Gestió dels missatges rebuts del servidor
     ws.onmessage = function(event) {
         let message;
         try {
             message = JSON.parse(event.data);
             console.log("📩 Missatge rebut:", message);
         } catch (error) {
+            // Mostrar l'error
             console.error("❌ Error parsejant missatge:", error);
             return;
         }
     
+        // Gestiona els diferents tipus de missatges
         switch (message.type) {
             case 'config':
+                // Actualitza els camps del formulari amb la configuració rebuda
                 document.getElementById('width').value = message.data.width;
                 document.getElementById('height').value = message.data.height;
                 document.getElementById('pisos').value = message.data.pisos;
                 break;
             case 'engegar':
+                // Canvia el text del botó a 'Aturar' quan el joc s'engega
                 document.getElementById('engegar').textContent = 'Aturar';
                 break;
             case 'aturar':
+                // Canvia el text del botó a 'Engegar' quan el joc s'atura
                 document.getElementById('engegar').textContent = 'Engegar';
                 break;
             case 'dibuixar':
+                // Registra l'estat actual del joc i actualitza el dibuix
                 console.log("🎨 Actualitzant estat del joc:", {
                     jugadors: message.jugadors?.length || 0,
                     pedres: message.pedres?.length || 0,
@@ -124,11 +133,12 @@ function init() {
                 dibuixar(message.jugadors || [], message.pedres || [], message.punts || [0, 0]);
                 break;
             default:
+                // Mostra per consola el missatge
                 console.log("Missatge rebut:", message);
         }
     };
 
-    // Move these outside onmessage
+    // Gestors d'esdeveniments
     document.getElementById('configurar').addEventListener('click', setConfig);
     document.getElementById('engegar').addEventListener('click', startStop);
 }

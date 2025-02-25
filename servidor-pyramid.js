@@ -135,13 +135,13 @@ const wss = new WebSocket.Server({ port: 8180 });
 //	- tancar (quan detecta que el client ha tancat la connexió)
 
 // Variables per emmagatzemar l'estat del joc
-let players = {}; // Emmagatzema la informació dels jugadors
-let playerIdCounter = 0; // Comptador per generar IDs únics
-let gameRunning = false;  // Estat del joc
-let gameInterval = null;  // Interval del temporitzador
-let adminWs = null;      // Connexió WebSocket de l'administrador
-let pedres = [];         // Array de pedres en la zona de joc
-let punts = [0, 0];      // Puntuació dels dos equips
+let players = {};
+let playerIdCounter = 0;
+let gameRunning = false;
+let gameInterval = null;
+let adminWs = null;
+let pedres = [];
+let punts = [0, 0];
 
 console.log("Servidor WebSocket escoltant al port 8180");
 // Esdeveniment del servidor 'wss' per gestionar la connexió d'un client 'ws'
@@ -154,12 +154,12 @@ wss.on('connection', function connection(ws) {
     // Gestor d'esdeveniments per quan el client envia un missatge
     ws.on('message', function incoming(message) {
         console.log("Missatge rebut: %s", message);
-        processar(ws, message); // Add this line to process messages
+        processar(ws, message);
     });
 
     // Gestor d'esdeveniments per quan el client es desconnecta
     ws.on('close', function close() {
-        tancar(ws); // Add this line to handle disconnections
+        tancar(ws);
     });
 
     // Gestor d'esdeveniments per errors
@@ -185,6 +185,7 @@ wss.on('connection', function connection(ws) {
 //	- modificar la direcció
 function processar(ws, m) {
     try {
+        // Processar Moviment del jugador
         const data = JSON.parse(m);
         console.log("📩 Missatge rebut:", data);
 
@@ -221,6 +222,7 @@ function processar(ws, m) {
 // Tenir en compte si és un jugador
 //	per comptar els que té cada equip
 function tancar(ws) {
+    // Comprovar si el client desconnectat és un jugador
 	const playerId = Object.keys(players).find(id => players[id].ws === ws);
     if (playerId) {
         console.log(`Client desconnectat (ID: ${playerId})`);
@@ -270,7 +272,7 @@ function crearAdmin(ws, m) {
 //	- enviar-li el seu identificador i la configuració actual:
 //		mida de la zona de joc i pisos de la piràmide
 function crearJugador(ws, m) {
-    // Check if game is running
+    // Verificar si el joc està en marxa
     if (gameRunning) {
         ws.close(1000, "El joc ja està en marxa");
         return;
@@ -279,17 +281,17 @@ function crearJugador(ws, m) {
     const playerId = playerIdCounter++; 
     console.log(`Nou jugador connectat amb ID: ${playerId}`);
 
-    // Count players in each team to balance them
+    // Contar jugadors de cada equip
     let team0Count = 0, team1Count = 0;
     Object.values(players).forEach(player => {
         if (player.team === 0) team0Count++;
         else team1Count++;
     });
 
-    // Assign team with fewer players
+    // Asignar equip basat en el nombre de jugadors
     const team = team0Count <= team1Count ? 0 : 1;
 
-    // Create player with initial position based on team
+    // Crear un jugador amb posició inicial
     players[playerId] = {
         id: playerId,
         ws: ws,
@@ -298,14 +300,14 @@ function crearJugador(ws, m) {
         team: team
     };
 
-    // Send ID and config to the client
+    // Enviar identificador i configuració
     ws.send(JSON.stringify({ 
         type: 'connectat', 
         id: playerId,
         config: config 
     }));
 
-    // Broadcast updated game state
+    // Enviar l'estat del joc a tots els clients
     enviarEstatJoc();
 }
 
@@ -344,6 +346,8 @@ function reiniciar() {
 //		config.pedres = (config.pisos + 1) * config.pisos / 2;
 //	- cridar la funció reiniciar
 //	- enviar la configuració a tothom
+
+
 function configurar(ws, m) {
     // Verificar que és l'administrador
     if (ws !== adminWs) {
@@ -401,6 +405,7 @@ function configurar(ws, m) {
 //		enviar missatge informatiu
 //	- cridar la funció reiniciar, canviar l'estat del joc
 //		i enviar-li missatge informatiu
+
 function start(ws, m) {
     // Verificar si l'usuari és l'administrador
     if (ws !== adminWs) {
@@ -439,6 +444,7 @@ function start(ws, m) {
 //		enviar missatge informatiu
 //	- canviar l'estat del joc
 //		i enviar-li missatge informatiu
+
 function stop(ws, m) {
     // Verificar si l'usuari és l'administrador
     if (ws !== adminWs) {
@@ -476,6 +482,7 @@ function stop(ws, m) {
 //	- si està en una zona de construcció que no és del seu equip, no deixar la pedra
 //	- si està en la zeva zona de construcció, eliminar la pedra i afegir un punt al seu equip
 //		si ja s'han posat totes les pedres, aturar el joc
+
 function agafar(ws, m) {
 }
 

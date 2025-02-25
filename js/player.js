@@ -23,7 +23,7 @@ function direccio(ev) {
         return;
     }
 
-    // Determinar la nueva dirección según la tecla
+    // Moviment del jugador
     let newDirection = null;
     switch (ev.key) {
         case 'ArrowUp':
@@ -51,23 +51,23 @@ function direccio(ev) {
             return;
     }
 
-    // Si es una nueva dirección válida
+    // Si la direcció es vàlida, enviar el missatge al servidor
     if (newDirection) {
-        // Detener el intervalo actual si existe
+        // Aturem el moviment anterior (si hi ha)
         if (moveInterval) {
             clearInterval(moveInterval);
         }
 
         currentDirection = newDirection;
         
-        // Crear nuevo intervalo para movimiento continuo
+        // Crear un interval per enviar la direcció al servidor
         moveInterval = setInterval(() => {
             ws.send(JSON.stringify({ 
                 type: 'direccio',  
                 id: playerId,
                 direction: currentDirection 
             }));
-        }, 100); // Ajusta este valor para controlar la velocidad
+        }, 100);
     }
 }
 
@@ -85,37 +85,43 @@ function direccio(ev) {
 //		- missatge: mostrar el missatge per consola
 // Afegir el gestor d'esdeveniments per les tecles
 function init() {
+    // Inicialitzar la connexió WebSocket
     console.log("🚀 Inicialitzant connexió WebSocket...");
     ws = new WebSocket('ws://localhost:8180');
 
     ws.onopen = function() {
+        // Enviar missatge de nou jugador
         console.log("✅ Connexió establerta amb el servidor");
         console.log("📤 Enviant petició de nou jugador");
         ws.send(JSON.stringify({ type: 'player' }));
     };
 
     ws.onclose = function() {
+        // Tancar la connexió
         console.log("❌ Connexió tancada");
         alert("Connexió tancada. Tornant a la pàgina principal.");
         window.location.href = "index.html";
     };
 
     ws.onerror = function(error) {
+        // Mostrar error i tancar la connexió
         console.log("❌ Error en la connexió:", error);
         alert("Error en la connexió: " + error.message);
         window.location.href = "index.html";
     };
 
     ws.onmessage = function(event) {
+        // Processar missatges rebuts
         const message = JSON.parse(event.data);
         console.log("📩 Missatge rebut:", message);
     
         switch(message.type) {
+            // Processar missatges segons el tipus
             case 'connectat':
                 playerId = message.id;
                 console.log("✅ Connectat com a jugador", playerId);
                 
-                // If config was sent with connection, apply it
+                // Pisos
                 if (message.config) {
                     console.log("⚙️ Configuració inicial rebuda:", message.config);
                     configurar(message.config);
@@ -124,23 +130,25 @@ function init() {
                 break;
                 
             case 'config':
+                // Actualitzar la configuració del joc
                 if (!message.data || typeof message.data !== 'object') {
                     console.error("❌ Dades de configuració invàlides");
                     return;
                 }
                 console.log("⚙️ Nova configuració rebuda:", message.data);
-                // Update SVG viewport and dimensions
+                // Actualitzar la configuració del joc (dimensions)
                 const svg = document.querySelector("svg");
                 svg.setAttribute("width", message.data.width);
                 svg.setAttribute("height", message.data.height);
                 svg.setAttribute("viewBox", `0 0 ${message.data.width} ${message.data.height}`);
                 
-                // Call configurar to update game settings
+                // Pisos
                 configurar(message.data);
                 document.getElementById('pisos').value = message.data.pisos;
                 break;
                 
             case 'dibuixar':
+                // Dibuixa jugador, pedres i punts
                 console.log("🎨 Actualitzant estat del joc:", {
                     jugadors: message.jugadors?.length || 0,
                     pedres: message.pedres?.length || 0,
@@ -159,7 +167,7 @@ function init() {
                 console.log("💬 Missatge del servidor:", message.text);
                 break;
             case 'colision':
-                // Detener el movimiento cuando hay colisión
+                // Si hi ha col·lisió, aturar el moviment
                 if (moveInterval) {
                     clearInterval(moveInterval);
                     moveInterval = null;
@@ -170,6 +178,7 @@ function init() {
                 console.log("❓ Missatge no processat:", message);
         }
     };
+    
     document.addEventListener('keydown', direccio);
     console.log("✅ Event listener de teclat afegit");
 }
