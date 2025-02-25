@@ -484,95 +484,6 @@ function stop(ws, m) {
 //		si ja s'han posat totes les pedres, aturar el joc
 
 function agafar(ws, m) {
-}
-
-// Esdeveniment: direcció
-//	Actualitzar la direcció del jugador
-
-function broadcastPlayers() {
-    enviarEstatJoc();
-}
-
-function direccio(ws, m) {
-    if (!gameRunning) return;
-
-    const data = JSON.parse(m);
-    const playerId = data.id;
-    const player = players[playerId];
-
-    if (player) {
-        let newX = player.x;
-        let newY = player.y;
-
-        switch (data.direction) {
-            case 'up': newY -= INCHV; break;
-            case 'down': newY += INCHV; break;
-            case 'left': newX -= INCHV; break;
-            case 'right': newX += INCHV; break;
-        }
-
-        // Check boundaries before updating
-        if (newX >= 0 && newX <= config.width - MIDAJ &&
-            newY >= 0 && newY <= config.height - MIDAJ) {
-            player.x = newX;
-            player.y = newY;
-            enviarEstatJoc();
-        }
-    }
-}
-
-
-
-/********** Temporitzador del joc **********/
-
-// Cridar la funció mou() a intervals regulars (cada TEMPS mil·lisegons)
-
-
-
-// Esdeveniment periòdic (cada 'TEMPS' mil·lisegons):
-//	- incrementar la posició de cada jugador
-//		comprovant que no surt de la zona de joc
-//		i que no se solapa amb cap altre jugador
-//	- si el jugador porta una pedra
-//		també s'ha d'actualitzar la posició de la pedra
-//	- si s'està jugant i no hi ha el màxim de pedres en la zona de joc
-//		afegir una pedra en una posició aleatòria
-//		evitant que quedi dins de les zones de construcció de les piràmides
-//	- enviar un missatge a tothom
-//		amb les posicions dels jugadors, les pedres (només si el joc està en marxa)
-//		i la puntuació de cada equip (un punt per cada pedra posada en la piràmide)
-
-function mou() {
-    if (!gameRunning) return;
-
-    // Update players positions
-    Object.values(players).forEach(player => {
-        // Update stone position if player has one
-        if (player.stone) {
-            player.stone.x = player.x;
-            player.stone.y = player.y;
-        }
-    });
-
-    // Add new stones if needed
-    if (pedres.length < MAXPED) {
-        const novaPedra = {
-            x: Math.floor(Math.random() * (config.width - MIDAP)),
-            y: Math.floor(Math.random() * (config.height - MIDAP))
-        };
-        
-        // Avoid pyramid zones
-        if (!isInPyramidZone(novaPedra.x, novaPedra.y)) {
-            pedres.push(novaPedra);
-        }
-    }
-
-    // Send game state to all clients
-    enviarEstatJoc();
-}
-
-
-function agafar(ws, m) {
     if (!gameRunning) return;
 
     const dades = JSON.parse(m);
@@ -616,12 +527,102 @@ function agafar(ws, m) {
     enviarEstatJoc();
 }
 
+// Esdeveniment: direcció
+//	Actualitzar la direcció del jugador
+
+function broadcastPlayers() {
+    enviarEstatJoc();
+}
+
+function direccio(ws, m) {
+    // Verificar si el joc està en marxa
+    if (!gameRunning) return;
+
+    const data = JSON.parse(m);
+    const playerId = data.id;
+    const player = players[playerId];
+
+    if (player) {
+        // Actualitzar la posició del jugador
+        let newX = player.x;
+        let newY = player.y;
+
+        switch (data.direction) {
+            // Actualitzar la posició segons la direcció
+            case 'up': newY -= INCHV; break;
+            case 'down': newY += INCHV; break;
+            case 'left': newX -= INCHV; break;
+            case 'right': newX += INCHV; break;
+        }
+
+        // Comprovar que no surt de la zona de joc
+        if (newX >= 0 && newX <= config.width - MIDAJ &&
+            newY >= 0 && newY <= config.height - MIDAJ) {
+            player.x = newX;
+            player.y = newY;
+            enviarEstatJoc();
+        }
+    }
+}
+
+
+
+/********** Temporitzador del joc **********/
+
+// Cridar la funció mou() a intervals regulars (cada TEMPS mil·lisegons)
+
+
+// Esdeveniment periòdic (cada 'TEMPS' mil·lisegons):
+//	- incrementar la posició de cada jugador
+//		comprovant que no surt de la zona de joc
+//		i que no se solapa amb cap altre jugador
+//	- si el jugador porta una pedra
+//		també s'ha d'actualitzar la posició de la pedra
+//	- si s'està jugant i no hi ha el màxim de pedres en la zona de joc
+//		afegir una pedra en una posició aleatòria
+//		evitant que quedi dins de les zones de construcció de les piràmides
+//	- enviar un missatge a tothom
+//		amb les posicions dels jugadors, les pedres (només si el joc està en marxa)
+//		i la puntuació de cada equip (un punt per cada pedra posada en la piràmide)
+
+function mou() {
+    // Comprovar si el joc està en marxa
+    if (!gameRunning) return;
+
+    // Actualitzar posicions dels jugadors
+    Object.values(players).forEach(player => {
+        // Actualitzar posició del jugador
+        if (player.stone) {
+            player.stone.x = player.x;
+            player.stone.y = player.y;
+        }
+    });
+
+    // Afegir pedres si no s'ha arribat al màxim
+    if (pedres.length < MAXPED) {
+        const novaPedra = {
+            x: Math.floor(Math.random() * (config.width - MIDAP)),
+            y: Math.floor(Math.random() * (config.height - MIDAP))
+        };
+        
+        // Evitar que la pedra quedi dins de les zones de construcció
+        if (!isInPyramidZone(novaPedra.x, novaPedra.y)) {
+            pedres.push(novaPedra);
+        }
+    }
+
+    // Enviar l'estat del joc a tots els clients
+    enviarEstatJoc();
+}
+
+
 function processar(ws, missatge) {
     try {
         const data = JSON.parse(missatge);
         console.log("📩 Missatge rebut:", data);
 
         switch (data.type) {
+            // Processar missatges segons el tipus
             case 'admin':
                 crearAdmin(ws, missatge);
                 break;
@@ -651,13 +652,13 @@ function processar(ws, missatge) {
     }
 }
 
-// Helper function to check if position is in pyramid zone
+// Si esta en la zona de la piràmide
 function isInPyramidZone(x, y) {
     return (x < PHMAX || x > config.width - PHMAX) && 
            (y < PVMAX || y > config.height - PVMAX);
 }
 
-// Helper function to check if position is in team's zone
+// Si esta en la zona de l'equip
 function isInTeamZone(x, y, team) {
     if (team === 0) {
         return x < PHMAX && y < PVMAX;
@@ -667,6 +668,7 @@ function isInTeamZone(x, y, team) {
 }
 
 function enviarEstatJoc() {
+    // Enviar l'estat del joc a tots els clients
     const estatJoc = {
         type: 'dibuixar',
         jugadors: Object.values(players),
