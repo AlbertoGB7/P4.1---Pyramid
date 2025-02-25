@@ -2,12 +2,25 @@ body * {
 	font-size:16px;
 }
 
+body {
+    background-image: url('../img/fons.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    margin: 0;
+    padding: 20px;
+}
+
 h2 {
 	font-size:1.4rem;
 	text-align:center;
 }
 
 div {
+    background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
+    padding: 20px;
+    border-radius: 10px;
 	margin-bottom:1rem;
 }
 
@@ -36,5 +49,11 @@ input {
 
 .bold {
 	font-weight:bold;
+}
+
+svg {
+    background-color: rgba(255, 255, 255, 0.9); /* More opaque white */
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
