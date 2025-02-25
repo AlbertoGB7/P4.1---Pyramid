@@ -1,0 +1,1 @@
+Aquest projecte s'ha realitzat fent servir node però s'ha eliminat la carpeta per a realitzar l'entrega.
